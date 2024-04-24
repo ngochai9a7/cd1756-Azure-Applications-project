@@ -2,13 +2,16 @@ from datetime import datetime
 from FlaskWebProject import app, db, login
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
-from azure.storage.blob import BlockBlobService
+from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient
 import string, random
 from werkzeug import secure_filename
 from flask import flash
 
 blob_container = app.config['BLOB_CONTAINER']
-blob_service = BlockBlobService(account_name=app.config['BLOB_ACCOUNT'], account_key=app.config['BLOB_STORAGE_KEY'])
+# blob_service = BlockBlobService(account_name=app.config['BLOB_ACCOUNT'], account_key=app.config['BLOB_STORAGE_KEY'])
+
+connection_string = 'DefaultEndpointsProtocol=https;AccountName=articlecmsstorageudacity;AccountKey=5ABh6u+/M/pncNOfQvipzHtvSwIaHwDvR+CxVdOp9VGWjVhsFFlWg0AMUDDRNWbxhhMp7c0EhG4X+ASt7Go0+w==;EndpointSuffix=core.windows.net'
+blob_service = BlobServiceClient.from_connection_string(connection_string)
 
 def id_generator(size=32, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for _ in range(size))
@@ -57,9 +60,13 @@ class Post(db.Model):
             Randomfilename = id_generator();
             filename = Randomfilename + '.' + fileextension;
             try:
-                blob_service.create_blob_from_stream(blob_container, filename, file)
+                # blob_service.create_blob_from_stream(blob_container, filename, file)
+                blob_client = blob_service.get_blob_client(blob=filename, container=blob_container)
+                blob_client.upload_blob(file.read(), overwrite=True)
                 if(self.image_path):
-                    blob_service.delete_blob(blob_container, self.image_path)
+                    # blob_service.delete_blob(blob_container, self.image_path)
+                    blob_client = blob_service.get_blob_client(blob=self.image_path, container=blob_container)
+                    blob_client.delete_blob()
             except Exception:
                 flash(Exception)
             self.image_path =  filename
